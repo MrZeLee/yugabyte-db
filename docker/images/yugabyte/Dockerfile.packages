@@ -2,6 +2,7 @@ ARG BASE_IMAGE=docker.io/library/almalinux:8@sha256:16b6f4a8e88d1a27cafaac681ff7
 ARG VERSION=v2024.2.2.2
 
 FROM $BASE_IMAGE as builder
+ARG VERSION
 
 ENV YB_HOME=/home/yugabyte
 WORKDIR $YB_HOME
@@ -21,6 +22,7 @@ RUN dnf update -y && \
         npm \
         patchelf \
         python39 \
+        python39-devel \
         rsync && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
     alternatives --set python3 /usr/bin/python3.9 && \
@@ -43,9 +45,6 @@ RUN arch=$(uname -m) && \
     | zcat > /usr/local/bin/ninja && \
     chmod +x /usr/local/bin/ninja
 
-# Install Ninja (latest from GitHub)
-RUN
-
 # Install CMake
 RUN arch=$(uname -m) && \
     mkdir -p /root/tools && \
@@ -63,9 +62,8 @@ RUN mkdir -p /opt/yb-build && chown root:root /opt/yb-build
 RUN git clone https://github.com/yugabyte/yugabyte-db.git $YB_HOME/yugabyte-db
 
 RUN cd $YB_HOME/yugabyte-db && \
-    git checkout $VERSION
-
-RUN ./yb_release
+    git checkout $VERSION && \
+    ./yb_build.sh --scb --sj release
 
 # Final image
 FROM $BASE_IMAGE
