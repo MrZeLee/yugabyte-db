@@ -33,6 +33,7 @@ jobs:
           file: docker/images/yugabyte/Dockerfile.builder
           platforms: linux/arm64
           push: true
+          outputs: type=registry
           tags: ${{ env.DH_USER }}/yugabyte-builder:arm64-latest
           build-args: |
             BASE_IMAGE=docker.io/library/almalinux:8@sha256:16b6f4a8e88d1a27cafaac681ff78613c24033028fbcb3459427c91fb01937d6
@@ -60,6 +61,7 @@ jobs:
           file: docker/images/yugabyte/Dockerfile.builder
           platforms: linux/amd64
           push: true
+          outputs: type=registry
           tags: ${{ env.DH_USER }}/yugabyte-builder:amd64-latest
           build-args: |
             BASE_IMAGE=docker.io/library/almalinux:8

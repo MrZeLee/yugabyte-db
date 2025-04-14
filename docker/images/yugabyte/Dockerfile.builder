@@ -63,7 +63,7 @@ RUN git clone https://github.com/yugabyte/yugabyte-db.git $YB_HOME/yugabyte-db
 
 RUN cd $YB_HOME/yugabyte-db && \
     git checkout $VERSION && \
-    ./yb_build.sh --scb --sj release
+    ./yb_build.sh --sj --no-tests release --no-linuxbrew
 
 # Final image
 FROM $BASE_IMAGE
