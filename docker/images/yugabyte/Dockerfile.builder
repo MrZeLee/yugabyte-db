@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/almalinux:8@sha256:16b6f4a8e88d1a27cafaac681ff78613c24033028fbcb3459427c91fb01937d6
+ARG BASE_IMAGE=docker.io/library/almalinux:8
 ARG VERSION=v2024.2.2.2
 
 FROM $BASE_IMAGE as builder

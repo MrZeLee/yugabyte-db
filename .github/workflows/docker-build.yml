@@ -1,18 +1,15 @@
-name: Publish images to Docker Hub
+name: Publish builder images to Docker Hub
 
 on:
-  push:
-    branches: [ master ]
   workflow_dispatch:
 
 env:
   DH_USER: mrzelee
 
 jobs:
-  yugabyte-arm64:
-    name: Publish yugabyte-arm64 image
+  yugabyte-builder-arm64:
+    name: Build and Push ARM64 Image
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'release(yugabyte-arm64)') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
@@ -29,19 +26,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push Docker image for linux/arm64
+      - name: Build and push arm64 image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/images/yugabyte/Dockerfile.packages
+          file: docker/images/yugabyte/Dockerfile.builder
           platforms: linux/arm64
           push: true
-          tags: ${{ env.DH_USER }}/yugabyte-arm64:latest
+          tags: ${{ env.DH_USER }}/yugabyte-builder:arm64-latest
+          build-args: |
+            BASE_IMAGE=docker.io/library/almalinux:8@sha256:16b6f4a8e88d1a27cafaac681ff78613c24033028fbcb3459427c91fb01937d6
 
-  yugabyte-amd64:
-    name: Publish yugabyte-amd64 image
+  yugabyte-builder-amd64:
+    name: Build and Push AMD64 Image
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'release(yugabyte-amd64)')
     steps:
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
@@ -55,14 +53,33 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push Docker image for linux/amd64
+      - name: Build and push amd64 image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/images/yugabyte/Dockerfile.packages
+          file: docker/images/yugabyte/Dockerfile.builder
           platforms: linux/amd64
           push: true
-          tags: ${{ env.DH_USER }}/yugabyte-amd64:latest
+          tags: ${{ env.DH_USER }}/yugabyte-builder:amd64-latest
           build-args: |
             BASE_IMAGE=docker.io/library/almalinux:8
+
+  create-manifest:
+    name: Create and Push Multi-Platform Manifest
+    runs-on: ubuntu-latest
+    needs: [yugabyte-builder-arm64, yugabyte-builder-amd64]
+    steps:
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push manifest list
+        run: |
+          docker manifest create ${{ env.DH_USER }}/yugabyte-builder:latest \
+            --amend ${{ env.DH_USER }}/yugabyte-builder:amd64-latest \
+            --amend ${{ env.DH_USER }}/yugabyte-builder:arm64-latest
+
+          docker manifest push ${{ env.DH_USER }}/yugabyte-builder:latest
 
