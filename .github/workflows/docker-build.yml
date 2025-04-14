@@ -1,0 +1,40 @@
+name: Publish images to Docker Hub
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  DH_USER: mrzelee
+
+jobs:
+  yugabyte-arm64:
+    name: Publish yugabyte-arm64 image
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'release(yugabyte-arm64)') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push Docker image for linux/arm64
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/images/yugabyte/Dockerfile.packages
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.DH_USER }}/yugabyte-arm64:latest
+
