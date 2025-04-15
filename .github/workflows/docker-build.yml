@@ -36,36 +36,37 @@ jobs:
           outputs: type=registry
           tags: ${{ env.DH_USER }}/yugabyte-release:arm64-latest
 
-  yugabyte-release-amd64:
-    name: Build and Push AMD64 Release Image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Authenticate to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and push amd64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/images/yugabyte/Dockerfile.release
-          platforms: linux/amd64
-          push: true
-          outputs: type=registry
-          tags: ${{ env.DH_USER }}/yugabyte-release:amd64-latest
+  # yugabyte-release-amd64:
+  #   name: Build and Push AMD64 Release Image
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
+  #
+  #     - name: Authenticate to Docker Hub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v2
+  #
+  #     - name: Build and push amd64 image
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: .
+  #         file: docker/images/yugabyte/Dockerfile.release
+  #         platforms: linux/amd64
+  #         push: true
+  #         outputs: type=registry
+  #         tags: ${{ env.DH_USER }}/yugabyte-release:amd64-latest
 
   create-manifest-release:
     name: Create and Push Multi-Platform Release Manifest
     runs-on: ubuntu-latest
     # needs: [yugabyte-release-arm64, yugabyte-release-amd64]
+    needs: [yugabyte-release-arm64]
     steps:
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
@@ -129,39 +130,40 @@ jobs:
           build-args: |
             BASE_IMAGE=mrzelee/yugabyte-release
 
-  yugabyte-amd64:
-    name: Build and Push AMD64 Image
-    runs-on: ubuntu-latest
-    needs: [create-manifest-release]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Authenticate to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build and push amd64 image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/images/yugabyte/Dockerfile
-          platforms: linux/amd64
-          push: true
-          outputs: type=registry
-          tags: ${{ env.DH_USER }}/yugabyte:amd64-latest
-          build-args: |
-            BASE_IMAGE=mrzelee/yugabyte-release
+  # yugabyte-amd64:
+  #   name: Build and Push AMD64 Image
+  #   runs-on: ubuntu-latest
+  #   needs: [create-manifest-release]
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
+  #
+  #     - name: Authenticate to Docker Hub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v2
+  #
+  #     - name: Build and push amd64 image
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: .
+  #         file: docker/images/yugabyte/Dockerfile
+  #         platforms: linux/amd64
+  #         push: true
+  #         outputs: type=registry
+  #         tags: ${{ env.DH_USER }}/yugabyte:amd64-latest
+  #         build-args: |
+  #           BASE_IMAGE=mrzelee/yugabyte-release
 
   create-manifest:
     name: Create and Push Multi-Platform Manifest
     runs-on: ubuntu-latest
-    needs: [yugabyte-arm64, yugabyte-amd64]
+    # needs: [yugabyte-arm64, yugabyte-amd64]
+    needs: [yugabyte-arm64]
     steps:
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3

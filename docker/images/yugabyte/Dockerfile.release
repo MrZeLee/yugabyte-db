@@ -70,8 +70,14 @@ RUN cp /home/yugabyte/yugabyte-db/src/yb/gflag_allowlist.txt /home/yugabyte/gfla
 
 RUN mkdir -p /tmp/build
 
-RUN ./yb_release --no_reinitdb --force --destination /tmp/build --verbose --no_reinitdb --build_args "--no-tests --no-initdb"
-#
+RUN arch=$(uname -m) && \
+    if [ "$arch" = "aarch64" ]; then \
+      echo "Detected ARM64 architecture, setting CFLAGS and CXXFLAGS."; \
+      export CFLAGS="-march=armv8-a" && \
+      export CXXFLAGS="-march=armv8-a"; \
+    fi && \
+    ./yb_release --no_reinitdb --force --destination /tmp/build --verbose --no_reinitdb --build_args "--no-tests --no-initdb"
+
 # Final image
 FROM $BASE_IMAGE
 
