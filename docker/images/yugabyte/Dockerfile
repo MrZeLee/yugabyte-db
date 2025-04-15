@@ -10,7 +10,7 @@ FROM $BASE_IMAGE as intermediate
 ENV YB_HOME=/home/yugabyte
 WORKDIR $YB_HOME
 
-COPY packages/yugabyte*.tar.gz /tmp/
+# COPY packages/yugabyte*.tar.gz /tmp/
 
 RUN tar -xvf /tmp/yugabyte*$(uname -m)*.tar.gz --strip 1 \
     && rm -rf /tmp/yuabyte* \

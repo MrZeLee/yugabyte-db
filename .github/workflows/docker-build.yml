@@ -1,4 +1,4 @@
-name: Publish builder images to Docker Hub
+name: Publish images to Docker Hub
 
 on:
   workflow_dispatch:
@@ -7,18 +7,18 @@ env:
   DH_USER: mrzelee
 
 jobs:
-  yugabyte-builder-arm64:
-    name: Build and Push ARM64 Image
-    runs-on: ubuntu-latest
+  yugabyte-release-arm64:
+    name: Build and Push ARM64 Release Image
+    runs-on: ubuntu-24.04-arm
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -30,26 +30,24 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/images/yugabyte/Dockerfile.builder
+          file: docker/images/yugabyte/Dockerfile.release
           platforms: linux/arm64
           push: true
           outputs: type=registry
-          tags: ${{ env.DH_USER }}/yugabyte-builder:arm64-latest
-          build-args: |
-            BASE_IMAGE=docker.io/library/almalinux:8@sha256:16b6f4a8e88d1a27cafaac681ff78613c24033028fbcb3459427c91fb01937d6
+          tags: ${{ env.DH_USER }}/yugabyte-release:arm64-latest
 
-  yugabyte-builder-amd64:
-    name: Build and Push AMD64 Image
+  yugabyte-release-amd64:
+    name: Build and Push AMD64 Release Image
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -58,18 +56,16 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/images/yugabyte/Dockerfile.builder
+          file: docker/images/yugabyte/Dockerfile.release
           platforms: linux/amd64
           push: true
           outputs: type=registry
-          tags: ${{ env.DH_USER }}/yugabyte-builder:amd64-latest
-          build-args: |
-            BASE_IMAGE=docker.io/library/almalinux:8
+          tags: ${{ env.DH_USER }}/yugabyte-release:amd64-latest
 
-  create-manifest:
-    name: Create and Push Multi-Platform Manifest
+  create-manifest-release:
+    name: Create and Push Multi-Platform Release Manifest
     runs-on: ubuntu-latest
-    needs: [yugabyte-builder-arm64, yugabyte-builder-amd64]
+    # needs: [yugabyte-release-arm64, yugabyte-release-amd64]
     steps:
       - name: Authenticate to Docker Hub
         uses: docker/login-action@v3
@@ -77,11 +73,122 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
       - name: Create and push manifest list
         run: |
-          docker manifest create ${{ env.DH_USER }}/yugabyte-builder:latest \
-            --amend ${{ env.DH_USER }}/yugabyte-builder:amd64-latest \
-            --amend ${{ env.DH_USER }}/yugabyte-builder:arm64-latest
+          # Extract the digest for the amd64 image
+          amd64_digest=$(docker buildx imagetools inspect ${{ env.DH_USER }}/yugabyte-release:amd64-latest --raw | \
+            jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
+          echo "amd64 digest: $amd64_digest"
 
-          docker manifest push ${{ env.DH_USER }}/yugabyte-builder:latest
+          # Extract the digest for the arm64 image
+          arm64_digest=$(docker buildx imagetools inspect ${{ env.DH_USER }}/yugabyte-release:arm64-latest --raw | \
+            jq -r '.manifests[] | select(.platform.architecture=="arm64") | .digest')
+          echo "arm64 digest: $arm64_digest"
 
+          # Create the manifest list using digest-based references
+          docker manifest create ${{ env.DH_USER }}/yugabyte-release:latest \
+            ${{ env.DH_USER }}/yugabyte-release@${amd64_digest} \
+            ${{ env.DH_USER }}/yugabyte-release@${arm64_digest}
+
+          docker manifest push ${{ env.DH_USER }}/yugabyte-release:latest
+
+  yugabyte-arm64:
+    name: Build and Push ARM64 Image
+    runs-on: ubuntu-24.04-arm
+    needs: [create-manifest-release]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push arm64 image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/images/yugabyte/Dockerfile
+          platforms: linux/arm64
+          push: true
+          outputs: type=registry
+          tags: ${{ env.DH_USER }}/yugabyte:arm64-latest
+          build-args: |
+            BASE_IMAGE=mrzelee/yugabyte-release
+
+  yugabyte-amd64:
+    name: Build and Push AMD64 Image
+    runs-on: ubuntu-latest
+    needs: [create-manifest-release]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push amd64 image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/images/yugabyte/Dockerfile
+          platforms: linux/amd64
+          push: true
+          outputs: type=registry
+          tags: ${{ env.DH_USER }}/yugabyte:amd64-latest
+          build-args: |
+            BASE_IMAGE=mrzelee/yugabyte-release
+
+  create-manifest:
+    name: Create and Push Multi-Platform Manifest
+    runs-on: ubuntu-latest
+    needs: [yugabyte-arm64, yugabyte-amd64]
+    steps:
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Create and push manifest list
+        run: |
+          # Extract the digest for the amd64 image
+          amd64_digest=$(docker buildx imagetools inspect ${{ env.DH_USER }}/yugabyte:amd64-latest --raw | \
+            jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest')
+          echo "amd64 digest: $amd64_digest"
+
+          # Extract the digest for the arm64 image
+          arm64_digest=$(docker buildx imagetools inspect ${{ env.DH_USER }}/yugabyte:arm64-latest --raw | \
+            jq -r '.manifests[] | select(.platform.architecture=="arm64") | .digest')
+          echo "arm64 digest: $arm64_digest"
+
+          # Create the manifest list using digest-based references
+          docker manifest create ${{ env.DH_USER }}/yugabyte:latest \
+            ${{ env.DH_USER }}/yugabyte@${amd64_digest} \
+            ${{ env.DH_USER }}/yugabyte@${arm64_digest}
+
+          docker manifest push ${{ env.DH_USER }}/yugabyte:latest
