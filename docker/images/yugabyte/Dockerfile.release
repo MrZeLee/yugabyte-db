@@ -76,7 +76,7 @@ RUN arch=$(uname -m) && \
       export CFLAGS="-march=armv8-a" && \
       export CXXFLAGS="-march=armv8-a"; \
     fi && \
-    ./yb_release --no_reinitdb --force --destination /tmp/build --verbose --no_reinitdb --build_args "--no-tests --no-initdb"
+    ./yb_release --no_reinitdb --force --destination /tmp/build --verbose --no_reinitdb --build_args "--no-tests --no-initdb --no-download-thirdparty"
 
 # Final image
 FROM $BASE_IMAGE
