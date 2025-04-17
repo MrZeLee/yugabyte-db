@@ -64,19 +64,45 @@ RUN git clone https://github.com/yugabyte/yugabyte-db.git $YB_HOME/yugabyte-db
 WORKDIR /home/yugabyte/yugabyte-db
 
 RUN cd $YB_HOME/yugabyte-db && \
-  git checkout $VERSION
+  git checkout $VERSION && \
+  curl -sL https://github.com/MrZeLee/yugabyte-db/commit/4bc1fe754d00c73b7d9dea4f5c9dbd3fcf536de0.diff | \
+  git apply -
 
 RUN cp /home/yugabyte/yugabyte-db/src/yb/gflag_allowlist.txt /home/yugabyte/gflag_allowlist.txt
 
 RUN mkdir -p /tmp/build
 
-RUN arch=$(uname -m) && \
+RUN arch="$(uname -m)"; \
     if [ "$arch" = "aarch64" ]; then \
-      echo "Detected ARM64 architecture, setting CFLAGS and CXXFLAGS."; \
-      export CFLAGS="-march=armv8-a" && \
-      export CXXFLAGS="-march=armv8-a"; \
-    fi && \
-    ./yb_release --no_reinitdb --force --destination /tmp/build --verbose --no_reinitdb --build_args "--no-tests --no-initdb --no-download-thirdparty"
+      git clone https://github.com/yugabyte/yugabyte-db-thirdparty.git $YB_HOME/yugabyte-db-thirdparty; \
+    fi
+
+WORKDIR /home/yugabyte/yugabyte-db-thirdparty
+
+RUN arch="$(uname -m)"; \
+    if [ "$arch" = "aarch64" ]; then \
+      curl -sL https://github.com/mrzelee/yugabyte-db-thirdparty/commit/30141a0af9c380d5cb1590643c3159d38a3a1aea.diff | git apply - && \
+      ./build_thirdparty.sh --toolchain=llvm17 --skip-sanitizers --lto=full; \
+    fi
+
+WORKDIR /home/yugabyte/yugabyte-db
+
+RUN arch="$(uname -m)"; \
+    if [ "$arch" = "aarch64" ]; then \
+      ./yb_release \
+        --no_reinitdb \
+        --force \
+        --destination /tmp/build \
+        --verbose \
+        --build_args "--no-tests --no-initdb --no-download-thirdparty --thirdparty-dir $YB_HOME/yugabyte-db-thirdparty"; \
+    else \
+      ./yb_release \
+        --no_reinitdb \
+        --force \
+        --destination /tmp/build \
+        --verbose \
+        --build_args "--no-tests --no-initdb"; \
+    fi
 
 # Final image
 FROM $BASE_IMAGE
