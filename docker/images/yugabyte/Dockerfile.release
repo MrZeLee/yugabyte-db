@@ -23,7 +23,8 @@ RUN dnf update -y && \
         patchelf \
         python39 \
         python39-devel \
-        rsync && \
+        rsync \
+        perl-IPC-Cmd && \
     alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1 && \
     alternatives --set python3 /usr/bin/python3.9 && \
     dnf clean all
@@ -81,6 +82,7 @@ WORKDIR /home/yugabyte/yugabyte-db-thirdparty
 
 RUN arch="$(uname -m)"; \
     if [ "$arch" = "aarch64" ]; then \
+      git checkout 27b82bf1a139d6bf6f1f8bb3aa2df2f16b4d99de && \
       curl -sL https://github.com/mrzelee/yugabyte-db-thirdparty/commit/30141a0af9c380d5cb1590643c3159d38a3a1aea.diff | git apply - && \
       ./build_thirdparty.sh --toolchain=llvm17 --skip-sanitizers --lto=full; \
     fi
