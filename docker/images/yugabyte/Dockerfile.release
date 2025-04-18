@@ -10,8 +10,8 @@ WORKDIR $YB_HOME
 # Install dev tools & dependencies
 RUN dnf update -y && \
     dnf groupinstall -y 'Development Tools' && \
-    dnf install -y epel-release && \
-    dnf module enable -y rust:1.56 && \
+    dnf install -y epel-release dnf-plugins-core && \
+    dnf config-manager --set-enabled crb && \
     dnf install -y \
         ccache \
         gcc-toolset-11 \
