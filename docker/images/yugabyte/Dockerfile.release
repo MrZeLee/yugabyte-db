@@ -31,9 +31,9 @@ RUN dnf update -y && \
     dnf clean all
 
 # Install Rust and Cargo via rustup
-ENV RUSTUP_HOME=/home/yugabyte/.rustup \
-    CARGO_HOME=/home/yugabyte/.cargo \
-    PATH=/home/yugabyte/.cargo/bin:$PATH
+ENV RUSTUP_HOME=/root/.rustup \
+    CARGO_HOME=/root/.cargo \
+    PATH=/root/.cargo/bin:$PATH
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 # Install Ninja (latest from GitHub)
