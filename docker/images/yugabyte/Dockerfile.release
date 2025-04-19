@@ -36,6 +36,21 @@ ENV RUSTUP_HOME=/root/.rustup \
     PATH=/root/.cargo/bin:$PATH
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
+ARG BAZEL_VERSION=6.3.2
+RUN arch=$(uname -m) && \
+    if [ "$arch" = "x86_64" ]; then \
+      TYPE="x86_64"; \
+    elif [ "$arch" = "aarch64" ]; then \
+      TYPE="arm64"; \
+    else \
+        echo "Unsupported architecture: $arch" && exit 1; \
+    fi && \
+    curl -fsSL \
+      "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-linux-${TYPE}" \
+      -o /usr/local/bin/bazel && \
+    chmod +x /usr/local/bin/bazel && \
+    bazel --version
+
 # Install Ninja (latest from GitHub)
 RUN arch=$(uname -m) && \
     if [ "$arch" = "x86_64" ]; then \
